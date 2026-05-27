@@ -53,9 +53,13 @@ def push_deal(deal):
     ]
 
     if old_price:
-        msg_lines.append(f"💰 {old_price} → ¥{price}{discount_str}")
+        # price/old_price 可能已带 ¥ 前缀
+        p = price.replace("¥", "").replace("￥", "")
+        op = old_price.replace("¥", "").replace("￥", "")
+        msg_lines.append(f"💰 {op} → ¥{p}{discount_str}")
     else:
-        msg_lines.append(f"💰 ¥{price}")
+        p = price.replace("¥", "").replace("￥", "")
+        msg_lines.append(f"💰 ¥{p}")
 
     if source:
         msg_lines.append(f"🏪 来源: {source}")
