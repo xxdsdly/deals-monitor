@@ -17,6 +17,30 @@ import random
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 
+# ============ 自定义推广商品 ============
+PROMOTED_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "promoted_deals.json")
+
+
+def load_promoted_deals():
+    """加载自定义推广商品列表"""
+    if not os.path.exists(PROMOTED_FILE):
+        return []
+    try:
+        with open(PROMOTED_FILE, "r", encoding="utf-8") as f:
+            deals = json.load(f)
+        active = [d for d in deals if d.get("active", True)]
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+        for d in active:
+            d["time"] = now_str
+            pn = extract_number(d.get("price", "0"))
+            opn = extract_number(d.get("old_price", "0"))
+            d["discount"] = round(1 - pn / opn, 2) if pn > 0 and opn > 0 else 0
+        print(f"[自定义推广] 加载 {len(active)} 条（共 {len(deals)} 条，{len(deals)-len(active)} 条未启用）")
+        return active
+    except Exception as e:
+        print(f"[自定义推广] 加载失败: {e}")
+        return []
+
 
 def extract_number(text):
     """从文本中提取数字"""
@@ -198,15 +222,25 @@ def collect_all():
     print(f"开始采集优惠信息... {datetime.now().strftime('%H:%M:%S')}")
     print("=" * 50)
 
-    # 1. 预置模板（主要来源，确保有内容）
-    fallback = get_fallback_deals()
-    all_deals.extend(fallback)
-    print(f"预置模板: {len(fallback)} 条")
+    # 1. 自定义推广商品（最优先）
+    promoted = load_promoted_deals()
+    all_deals.extend(promoted)
+    print(f"自定义推广: {len(promoted)} 条")
 
-    # 2. 什么值得买（能爬到就追加）
+    # 2. 如果自定义商品不够5条，用模板补足
+    needed = max(0, 5 - len(promoted))
+    if needed > 0:
+        fallback = get_fallback_deals()
+        all_deals.extend(fallback[:needed])
+        print(f"预置模板（补充）: {min(needed, len(fallback))} 条")
+    else:
+        print("预置模板: 跳过（自定义商品已满）")
+
+    # 3. 什么值得买（能爬到就追加，不超过总条数）
     smzdm = collect_smzdm_deals()
-    all_deals.extend(smzdm)
-    print(f"什么值得买: {len(smzdm)} 条")
+    if smzdm and len(all_deals) < 8:
+        all_deals.extend(smzdm[:8 - len(all_deals)])
+    print(f"什么值得买: {len(smzdm)} 条（追加后总计{len(all_deals)}条）")
 
     print(f"总计: {len(all_deals)} 条")
     print("=" * 50)

@@ -1,0 +1,11 @@
+[
+  {
+    "source": "淘宝",
+    "title": "在这里填商品名称",
+    "price": "¥99",
+    "old_price": "¥149",
+    "tag": "优惠券",
+    "url": "https://s.click.taobao.com/你的推广链接",
+    "active": true
+  }
+]
