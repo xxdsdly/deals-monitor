@@ -1,0 +1,62 @@
+# GitHub Actions Workflow - 优惠信息采集
+# 每30分钟自动运行一次，采集优惠信息推送到微信群
+
+name: 优惠信息巡检
+
+on:
+  schedule:
+    # 每30分钟运行一次（cron表达式）
+    # 格式: 分钟 小时 日 月 星期
+    - cron: '*/30 * * * *'
+  
+  # 也支持手动触发（方便测试）
+  workflow_dispatch:
+
+jobs:
+  collect-deals:
+    name: 采集并推送优惠信息
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 安装依赖
+        run: |
+          pip install -r requirements.txt
+
+      - name: 配置环境变量
+        run: |
+          # 企业微信群机器人 Webhook 地址
+          # 在 GitHub Settings → Secrets and variables → Actions 中设置
+          # 变量名: WECHAT_WEBHOOK_URL
+          echo "WECHAT_WEBHOOK_URL=${{ secrets.WECHAT_WEBHOOK_URL }}" > .env
+
+      - name: 运行采集脚本
+        run: |
+          python main.py
+        env:
+          # 如果以后配置了京东联盟，密钥也传进来
+          JD_APP_KEY: ${{ secrets.JD_APP_KEY }}
+          JD_APP_SECRET: ${{ secrets.JD_APP_SECRET }}
+
+      - name: 上传缓存（用于去重）
+        uses: actions/upload-artifact@v4
+        with:
+          name: push-cache
+          path: push_cache.json
+          retention-days: 1
+          if-no-files-found: ignore
+
+      - name: 保活缓存（下载上次的去重缓存）
+        uses: actions/download-artifact@v4
+        with:
+          name: push-cache
+          path: .
+        continue-on-error: true
